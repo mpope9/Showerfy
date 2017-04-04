@@ -12,6 +12,7 @@
 #define PLUGINPROCESSOR_H_INCLUDED
 
 #include "../JuceLibraryCode/JuceHeader.h"
+#include "FFTW/fftw3.h"
 
 
 //==============================================================================
@@ -78,10 +79,10 @@ private:
 	int showerSoundPosition;								/* Position of the showerSound buffer */
 
 	/* FFT related stuff. */
-	Array<FFT::Complex*> prepImpulseResponseTransformed;
-	Array<float*> prepCopys;
-	Array<FFT*>   prepFFTs;
-	Array<FFT*>   prepInverseFFTs;
+	Array<float*> prepCopysIn;
+	Array<fftwf_complex*> prepCopysOut;
+	Array<fftwf_complex*> prepImpulseResponseTransformed;
+	Array<float*> prepConvolvedInverse;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ShowerfyAudioProcessor)
 };

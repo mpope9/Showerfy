@@ -19,21 +19,21 @@ ShowerfyAudioProcessorEditor::ShowerfyAudioProcessorEditor (ShowerfyAudioProcess
 	// Make sure that before the constructor has finished, you've set the
 	// editor's size to whatever you need it to be.
 	Component::addAndMakeVisible(slider = new Slider("new slider"));
-	slider->setRange(0, 10, 0);
+	slider->setRange(0, 1, 0);
 	slider->setSliderStyle(Slider::Rotary);
 	slider->setTextBoxStyle(Slider::NoTextBox, false, 80, 20);
 	slider->setColour(Slider::rotarySliderOutlineColourId, Colour(0xffffa100));
 	slider->addListener(this);
 
 	Component::addAndMakeVisible(slider2 = new Slider("new slider"));
-	slider2->setRange(0, 10, 0);
+	slider2->setRange(0, 1, 0);
 	slider2->setSliderStyle(Slider::Rotary);
 	slider2->setTextBoxStyle(Slider::NoTextBox, false, 80, 20);
 	slider2->setColour(Slider::rotarySliderOutlineColourId, Colour(0xffffa100));
 	slider2->addListener(this);
 
 	Component::addAndMakeVisible(slider3 = new Slider("new slider"));
-	slider3->setRange(0, 10, 0);
+	slider3->setRange(0, 1, 0);
 	slider3->setSliderStyle(Slider::Rotary);
 	slider3->setTextBoxStyle(Slider::NoTextBox, false, 80, 20);
 	slider3->setColour(Slider::rotarySliderOutlineColourId, Colour(0xffffa100));

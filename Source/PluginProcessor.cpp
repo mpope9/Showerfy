@@ -136,11 +136,13 @@ void ShowerfyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 
 	int IRBS = impulseResponseBuffer.getNumSamples();
 	int fftSize = IRBS + samplesPerBlock;
+	fftwf_plan impulseResponseTransformer;
 
 	/* Init the float array for pre-transformation of the IR. */
 	/* Mono channel.  Radical. */
 	const float* readPtrs = impulseResponseBuffer.getReadPointer(0);
 	float* impulseResponseFloats = new float[fftSize * 2];
+	fftwf_complex* impulseResponseComplex = fftwf_alloc_complex(size_t(fftSize));
 
 	int j;
 	for (j = 0; j < IRBS; ++j)
@@ -148,26 +150,22 @@ void ShowerfyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 	for (j = IRBS; j < fftSize * 2; ++j)
 		impulseResponseFloats[j] = 0;
 
-	/* Perform the transformation on the IR, convert to FFT::Complex */
-	FFT impulseResponseTransformer(log2(fftSize), false);
-	impulseResponseTransformer.performRealOnlyForwardTransform(impulseResponseFloats);
-	FFT::Complex* impulseResponseComplex = new FFT::Complex[fftSize];
-	int tracker = 0;
-	int i;
-	for (i = 0; i < fftSize * 2; i += 2)
-	{
-		impulseResponseComplex[tracker].r = impulseResponseFloats[i];
-		impulseResponseComplex[tracker].i = impulseResponseFloats[i + 1];
-		++tracker;
-	}
+	/* Perform the transformation on the IR, convert to store in impulseResponseComplex as fftw_complex types. */
+	impulseResponseTransformer = fftwf_plan_dft_r2c_1d(fftSize, impulseResponseFloats, impulseResponseComplex, FFTW_ESTIMATE);
+	fftwf_execute(impulseResponseTransformer);
 
 	/* Initialization of everything needed for the prepareToPlay */
-	prepCopys.add(new float[fftSize * 2]);
+	float* cpyIn = new float[fftSize * 2];
+	fftwf_complex* cpyOut = fftwf_alloc_complex(fftSize);
+	float* convolvedInverse = new float[fftSize * 2];
+
+	prepCopysIn.add(cpyIn);
+	prepCopysOut.add(cpyOut);
 	prepImpulseResponseTransformed.add(impulseResponseComplex);
-	prepFFTs.add(new FFT(log2(fftSize), false));
-	prepInverseFFTs.add(new FFT(log2(fftSize), true));
+	prepConvolvedInverse.add(convolvedInverse);
 
 	/* Clear out this temp stuff. */
+	fftwf_destroy_plan(impulseResponseTransformer);
 	delete impulseResponseFloats;
 }
 
@@ -175,12 +173,11 @@ void ShowerfyAudioProcessor::releaseResources()
 {
 	// When playback stops, you can use this as an opportunity to free up any
 	// spare memory, etc.
-	for (int i = prepCopys.size() - 1; i >= 0; --i)
+	for (int i = prepCopysIn.size() - 1; i >= 0; --i)
 	{
-		delete prepCopys.removeAndReturn(i);
-		delete prepImpulseResponseTransformed.removeAndReturn(i);
-		delete prepFFTs.removeAndReturn(i);
-		delete prepInverseFFTs.removeAndReturn(i);
+		delete prepCopysIn.removeAndReturn(i);
+		fftwf_free(prepCopysOut.removeAndReturn(i));
+		fftwf_free(prepImpulseResponseTransformed.removeAndReturn(i));
 	}
 }
 
@@ -216,15 +213,21 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 	int impulseResponseBufferNumSamples = impulseResponseBuffer.getNumSamples();
 	int fftSize = impulseResponseBufferNumSamples + buffer.getNumSamples();
 
+	/* Buffers */
+	float* convolvedInverse = prepConvolvedInverse.getLast();
+	float* cpyIn = prepCopysIn.getLast();
+	fftwf_complex* cpyOut = prepCopysOut.getLast();
+
+	/* Plans */
+	fftwf_plan plan;
+	fftwf_plan invPlan;
+
 	/* Retrieve the FFT for the buffer. */
-	FFT* bufferTransformer = prepFFTs.getLast();
-	FFT* inverter = prepInverseFFTs.getLast();
+	plan = fftwf_plan_dft_r2c_1d(fftSize, cpyIn, cpyOut, FFTW_ESTIMATE);
+	invPlan = fftwf_plan_dft_c2r_1d(fftSize, cpyOut, convolvedInverse, FFTW_ESTIMATE);
 
 	/* Impulse Response. */
-	FFT::Complex* impulseResponseTransformed = prepImpulseResponseTransformed.getLast();
-
-	/* Buffers for FFT */
-	float* bufferCopy = prepCopys.getLast();
+	fftwf_complex* impulseResponse = prepImpulseResponseTransformed.getLast();
 
 	const float* bufferInput;
 	float* bufferWriters;
@@ -238,37 +241,46 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		/* Set the bufferCopy with the samples from the DAW, zero extend. */
 		int j;
 		for (j = 0; j < bufferNumSamples; ++j)
-			bufferCopy[j] = bufferInput[j];
+			cpyIn[j] = cpyIn[j];
 		for (j = bufferNumSamples; j < fftSize * 2; ++j)
-			bufferCopy[j] = 0;
+			cpyIn[j] = 0;
 
 		/* Perform the FFT on the samples. */
-		bufferTransformer->performRealOnlyForwardTransform(bufferCopy);
+		fftwf_execute(plan);
 
 		/* Multiply the FFTs to get the convolution of the two. */
 		float tmpReal;
 		float tmpImagenary;
 		int sample;
-		int half;
-		for (sample = 0; sample < fftSize * 2; sample += 2)
+		for (sample = 0; sample < fftSize; ++sample)
 		{
-			half = sample / 2;
-			tmpReal = impulseResponseTransformed[half].r * bufferCopy[sample] -
-				impulseResponseTransformed[half].i * bufferCopy[sample + 1];
+			tmpReal = impulseResponse[sample][0] * cpyOut[sample][0] -
+				impulseResponse[sample][1] * cpyOut[sample][1];
 
-			tmpImagenary = impulseResponseTransformed[half].r * bufferCopy[sample] +
-				impulseResponseTransformed[half].i * bufferCopy[sample + 1];
+			tmpImagenary = impulseResponse[sample][0] * cpyOut[sample][1] +
+				impulseResponse[sample][1] * cpyOut[sample][0];
 
-			bufferCopy[sample] = tmpReal;
-			bufferCopy[sample + 1] = tmpImagenary;
+			cpyOut[sample][0] = tmpReal;
+			cpyOut[sample][1] = tmpImagenary;
 		}
 
-		/* Still holds the float values.  Revert back to non-complex floats. */
-		inverter->performRealOnlyInverseTransform(bufferCopy);
+		/* Inverse the buffer. */
+		fftwf_execute(invPlan);
 
 		/* Overwrite the origional buffer, but does not get all of what was convolved.  FIFO?. */
 		for (sample = 0; sample < bufferNumSamples; ++sample)
-			bufferWriters[sample] = bufferCopy[sample];
+		{
+			if (convolvedInverse[sample] <= -1.0f)
+				bufferWriters[sample] = -1.0f;
+			else if (convolvedInverse[sample] >= 1.0f)
+				bufferWriters[sample] = 1.0f;
+			else
+			{
+				//bufferWriters[sample] = bufferCopy[sample];
+				bufferWriters[sample] = (bufferInput[sample] * (1.0f - *impulseResponseWetDry)) +
+					(convolvedInverse[sample] * (*impulseResponseWetDry));
+			}
+		}
 
 		/* Mix the desired level of 'shower' noise into incoming signal. */
 		/* Fist check buffer position, prevents clipping? */
