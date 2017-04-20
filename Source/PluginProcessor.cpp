@@ -15,8 +15,6 @@
 //==============================================================================
 
 /*	Constructor.
-	I added the default ctor for the fft here.  The preprocessor part was generated
-	by JUCE.
 */
 ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 	: showerSoundPosition(0),										/* Initial shower sound pos is 0 */
@@ -82,7 +80,8 @@ const String ShowerfyAudioProcessor::getName() const
 }
 
 bool ShowerfyAudioProcessor::acceptsMidi() const
-{
+ {
+
    #if JucePlugin_WantsMidiInput
 	return true;
    #else
@@ -211,7 +210,7 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 	int bufferNumSamples = buffer.getNumSamples();
 	int bufferNumChannels = buffer.getNumChannels();
 	int impulseResponseBufferNumSamples = impulseResponseBuffer.getNumSamples();
-	int fftSize = impulseResponseBufferNumSamples + buffer.getNumSamples();
+	int fftSize = impulseResponseBufferNumSamples + bufferNumSamples;
 
 	/* Buffers */
 	float* convolvedInverse = prepConvolvedInverse.getLast();
@@ -222,26 +221,28 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 	fftwf_plan plan;
 	fftwf_plan invPlan;
 
-	/* Retrieve the FFT for the buffer. */
-	plan = fftwf_plan_dft_r2c_1d(fftSize, cpyIn, cpyOut, FFTW_ESTIMATE);
-	invPlan = fftwf_plan_dft_c2r_1d(fftSize, cpyOut, convolvedInverse, FFTW_ESTIMATE);
-
 	/* Impulse Response. */
 	fftwf_complex* impulseResponse = prepImpulseResponseTransformed.getLast();
 
-	const float* bufferInput;
 	float* bufferWriters;
+	const float* bufferReaders;
+	float* fifoWriters;
+	const float* fifoReaders;
+
+	/* Can these be outside/reused?? */
+	plan = fftwf_plan_dft_r2c_1d(fftSize, cpyIn, cpyOut, FFTW_ESTIMATE);
+	invPlan = fftwf_plan_dft_c2r_1d(fftSize, cpyOut, convolvedInverse, FFTW_ESTIMATE);
 
 	for (int channel = 0; channel < bufferNumChannels; ++channel)
 	{
 		/* Retrieve the read/write pointers for the channel we are on and make a copy of the read ones. */
 		bufferWriters = buffer.getWritePointer(channel);
-		bufferInput = buffer.getReadPointer(channel);
+		bufferReaders = buffer.getReadPointer(channel);
 
 		/* Set the bufferCopy with the samples from the DAW, zero extend. */
 		int j;
 		for (j = 0; j < bufferNumSamples; ++j)
-			cpyIn[j] = cpyIn[j];
+			cpyIn[j] = bufferReaders[j];
 		for (j = bufferNumSamples; j < fftSize * 2; ++j)
 			cpyIn[j] = 0;
 
@@ -267,19 +268,13 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		/* Inverse the buffer. */
 		fftwf_execute(invPlan);
 
-		/* Overwrite the origional buffer, but does not get all of what was convolved.  FIFO?. */
-		for (sample = 0; sample < bufferNumSamples; ++sample)
+		int i = 0;
+		for (i = 0; i < bufferNumSamples; ++i)
 		{
-			if (convolvedInverse[sample] <= -1.0f)
-				bufferWriters[sample] = -1.0f;
-			else if (convolvedInverse[sample] >= 1.0f)
-				bufferWriters[sample] = 1.0f;
-			else
-			{
-				//bufferWriters[sample] = bufferCopy[sample];
-				bufferWriters[sample] = (bufferInput[sample] * (1.0f - *impulseResponseWetDry)) +
-					(convolvedInverse[sample] * (*impulseResponseWetDry));
-			}
+
+			//bufferWriters[sample] = (bufferReaders[sample] * (1.0f - *impulseResponseWetDry)) +
+			//	(convolvedInverse[sample] * (*impulseResponseWetDry));
+			bufferWriters[sample] = convolvedInverse[sample];
 		}
 
 		/* Mix the desired level of 'shower' noise into incoming signal. */
@@ -293,6 +288,10 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		buffer.addFrom(channel, 0, showerSoundBuffer, channel, showerSoundPosition, buffer.getNumSamples(), *showerSoundGain);
 		showerSoundPosition += buffer.getNumSamples();
 	}
+
+	/* Destroy the plans */
+	fftwf_destroy_plan(plan);
+	fftwf_destroy_plan(invPlan);
 }
 
 //==============================================================================
