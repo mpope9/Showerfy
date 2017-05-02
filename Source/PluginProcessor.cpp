@@ -47,7 +47,6 @@ ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 	impulseResponseBuffer.setSize(impulseResponseReader->numChannels, impulseResponseReader->lengthInSamples);
 	impulseResponseReader->read(&impulseResponseBuffer, 0, impulseResponseBuffer.getNumSamples(), 0, true, true);
 
-
 	/* Audio Parameters. */
 	addParameter(showerSoundGain = new AudioParameterFloat ("showerSoundGain",		/* param ID */
 															"Shower Sound Gain",	/* param name */
@@ -68,7 +67,7 @@ ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 
 ShowerfyAudioProcessor::~ShowerfyAudioProcessor()
 {
-	//delete impulseResponseTransformed;
+	fftwf_cleanup();
 	delete impulseResponseReader;
 	delete showerSoundReader;
 }
@@ -133,51 +132,90 @@ void ShowerfyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 	/* DAMN YOU PREPARETOPLAY BEING CALLED MORE THAN ONCE! */
 	/* The amount of hassle cause by this is unnecessary. */
 
-	int IRBS = impulseResponseBuffer.getNumSamples();
-	int fftSize = IRBS + samplesPerBlock;
-	fftwf_plan impulseResponseTransformer;
+	/* FIFO TESTING */
+	/*
+	float inBuff[6];
+	float outBuff[4];
+	int x = 0;
+	int y = 0;
+	int increment = 0;
 
-	/* Init the float array for pre-transformation of the IR. */
+	lockFreeFifo fifo;
+	for (y = 0; y < 6; ++y)
+	{
+		for (x = 0; x < 6; ++x)
+		{
+			inBuff[x] = increment;
+			++increment;
+		}
+		fifo.addToFifo(inBuff, 6, 4);
+		fifo.readFromFifo(outBuff, 4); // fix this.
+	}
+	*/
+
+	int IRBS = impulseResponseBuffer.getNumSamples();
+	int fftSize = IRBS + samplesPerBlock - 1;
+	int channels = getNumInputChannels();
+
+	/* Init the plan and arrays for pre-transformation of the IR. */
 	/* Mono channel.  Radical. */
+	float* impulseResponseFloats = fftwf_alloc_real(fftSize);
+	fftwf_complex* impulseResponseComplex = fftwf_alloc_complex(fftSize/2 + 1);
+	fftwf_plan impulseResponseTransformer = fftwf_plan_dft_r2c_1d(fftSize,
+		impulseResponseFloats, impulseResponseComplex, FFTW_ESTIMATE);
 	const float* readPtrs = impulseResponseBuffer.getReadPointer(0);
-	float* impulseResponseFloats = new float[fftSize * 2];
-	fftwf_complex* impulseResponseComplex = fftwf_alloc_complex(size_t(fftSize));
 
 	int j;
 	for (j = 0; j < IRBS; ++j)
 		impulseResponseFloats[j] = readPtrs[j];
-	for (j = IRBS; j < fftSize * 2; ++j)
+	for (j = IRBS; j < fftSize; ++j)
 		impulseResponseFloats[j] = 0;
 
 	/* Perform the transformation on the IR, convert to store in impulseResponseComplex as fftw_complex types. */
-	impulseResponseTransformer = fftwf_plan_dft_r2c_1d(fftSize, impulseResponseFloats, impulseResponseComplex, FFTW_ESTIMATE);
 	fftwf_execute(impulseResponseTransformer);
 
 	/* Initialization of everything needed for the prepareToPlay */
-	float* cpyIn = new float[fftSize * 2];
-	fftwf_complex* cpyOut = fftwf_alloc_complex(fftSize);
-	float* convolvedInverse = new float[fftSize * 2];
+	float* cpyIn = fftwf_alloc_real(fftSize);
+	fftwf_complex* cpyOut = fftwf_alloc_complex(fftSize/2 + 1);
+	float* convolvedInverse = fftwf_alloc_real(fftSize);
+	float* fromFifo = new float[samplesPerBlock];
 
 	prepCopysIn.add(cpyIn);
 	prepCopysOut.add(cpyOut);
 	prepImpulseResponseTransformed.add(impulseResponseComplex);
 	prepConvolvedInverse.add(convolvedInverse);
+	prepFromFifo.add(fromFifo);
+
+	/* Fill all of the fifos needed! */
+	int i;
+	for (i = 0; i < channels; ++i)
+	{
+		prepFifoChannels.add(new lockFreeFifo());
+		prepFifoChannels[i]->reset();
+	}
 
 	/* Clear out this temp stuff. */
 	fftwf_destroy_plan(impulseResponseTransformer);
-	delete impulseResponseFloats;
+	fftwf_free(impulseResponseFloats);
 }
 
 void ShowerfyAudioProcessor::releaseResources()
 {
 	// When playback stops, you can use this as an opportunity to free up any
 	// spare memory, etc.
-	for (int i = prepCopysIn.size() - 1; i >= 0; --i)
+	int channels = getNumInputChannels();
+	int i;
+	for (i = prepCopysIn.size() - 1; i >= 0; --i)
 	{
-		delete prepCopysIn.removeAndReturn(i);
+		fftwf_free(prepCopysIn.removeAndReturn(i));
+		delete prepFromFifo.removeAndReturn(i);
 		fftwf_free(prepCopysOut.removeAndReturn(i));
 		fftwf_free(prepImpulseResponseTransformed.removeAndReturn(i));
+		fftwf_free(prepConvolvedInverse.removeAndReturn(i));
 	}
+
+	for (i = prepFifoChannels.size() - 1; i >= 0; --i)
+		delete prepFifoChannels.removeAndReturn(i);
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -207,43 +245,41 @@ bool ShowerfyAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
 	/* Constants */
-	int bufferNumSamples = buffer.getNumSamples();
 	int bufferNumChannels = buffer.getNumChannels();
+	int bufferNumSamples = buffer.getNumSamples();
 	int impulseResponseBufferNumSamples = impulseResponseBuffer.getNumSamples();
-	int fftSize = impulseResponseBufferNumSamples + bufferNumSamples;
+	int fftSize = impulseResponseBufferNumSamples + bufferNumSamples - 1;
 
 	/* Buffers */
 	float* convolvedInverse = prepConvolvedInverse.getLast();
 	float* cpyIn = prepCopysIn.getLast();
 	fftwf_complex* cpyOut = prepCopysOut.getLast();
-
-	/* Plans */
-	fftwf_plan plan;
-	fftwf_plan invPlan;
+	float* fromFifo = prepFromFifo.getLast();
 
 	/* Impulse Response. */
 	fftwf_complex* impulseResponse = prepImpulseResponseTransformed.getLast();
 
-	float* bufferWriters;
-	const float* bufferReaders;
-	float* fifoWriters;
-	const float* fifoReaders;
+	/* Global Initializations */
+	fftwf_plan plan = fftwf_plan_dft_r2c_1d(fftSize, cpyIn, cpyOut, FFTW_ESTIMATE);
+	fftwf_plan invPlan = fftwf_plan_dft_c2r_1d(fftSize, cpyOut, convolvedInverse, FFTW_ESTIMATE);
 
-	/* Can these be outside/reused?? */
-	plan = fftwf_plan_dft_r2c_1d(fftSize, cpyIn, cpyOut, FFTW_ESTIMATE);
-	invPlan = fftwf_plan_dft_c2r_1d(fftSize, cpyOut, convolvedInverse, FFTW_ESTIMATE);
+	/* Various pointers. */
+	const float* bufferReaders;
+	float* bufferWriters;
+	lockFreeFifo* curFifo;
 
 	for (int channel = 0; channel < bufferNumChannels; ++channel)
 	{
 		/* Retrieve the read/write pointers for the channel we are on and make a copy of the read ones. */
 		bufferWriters = buffer.getWritePointer(channel);
 		bufferReaders = buffer.getReadPointer(channel);
+		curFifo = prepFifoChannels[channel];
 
 		/* Set the bufferCopy with the samples from the DAW, zero extend. */
 		int j;
 		for (j = 0; j < bufferNumSamples; ++j)
 			cpyIn[j] = bufferReaders[j];
-		for (j = bufferNumSamples; j < fftSize * 2; ++j)
+		for (j = bufferNumSamples; j < fftSize; ++j)
 			cpyIn[j] = 0;
 
 		/* Perform the FFT on the samples. */
@@ -253,7 +289,7 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		float tmpReal;
 		float tmpImagenary;
 		int sample;
-		for (sample = 0; sample < fftSize; ++sample)
+		for (sample = 0; sample < (fftSize / 2) + 1; ++sample)
 		{
 			tmpReal = impulseResponse[sample][0] * cpyOut[sample][0] -
 				impulseResponse[sample][1] * cpyOut[sample][1];
@@ -268,13 +304,22 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		/* Inverse the buffer. */
 		fftwf_execute(invPlan);
 
-		int i = 0;
-		for (i = 0; i < bufferNumSamples; ++i)
-		{
+		int i;
+		/* Normalize the output.  Thanks FFTW. <3 */
+		for (i = 0; i < fftSize; ++i)
+			convolvedInverse[i] /= fftSize;
 
-			//bufferWriters[sample] = (bufferReaders[sample] * (1.0f - *impulseResponseWetDry)) +
-			//	(convolvedInverse[sample] * (*impulseResponseWetDry));
-			bufferWriters[sample] = convolvedInverse[sample];
+		if (*impulseResponseWetDry != 0)
+		{
+			curFifo->addToFifo(convolvedInverse, fftSize, bufferNumSamples);
+			curFifo->readFromFifo(fromFifo, bufferNumSamples);
+			//buffer.addFrom(channel, 0, fromFifo, bufferNumSamples);
+			//buffer.applyGain(*impulseResponseWetDry);
+			for (i = 0; i < bufferNumSamples; ++i)
+			{
+				bufferWriters[i] = (bufferReaders[i] * (1.0f - *impulseResponseWetDry)) +
+					fromFifo[i] * (*impulseResponseWetDry);
+			}
 		}
 
 		/* Mix the desired level of 'shower' noise into incoming signal. */
@@ -289,7 +334,6 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		showerSoundPosition += buffer.getNumSamples();
 	}
 
-	/* Destroy the plans */
 	fftwf_destroy_plan(plan);
 	fftwf_destroy_plan(invPlan);
 }

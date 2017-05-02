@@ -11,6 +11,7 @@
 #ifndef PLUGINPROCESSOR_H_INCLUDED
 #define PLUGINPROCESSOR_H_INCLUDED
 
+#include "lockFreeFifo.h"
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "FFTW/fftw3.h"
 
@@ -83,6 +84,8 @@ private:
 	Array<fftwf_complex*> prepCopysOut;
 	Array<fftwf_complex*> prepImpulseResponseTransformed;
 	Array<float*> prepConvolvedInverse;
+	Array<float*> prepFromFifo;
+	Array<lockFreeFifo*> prepFifoChannels;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ShowerfyAudioProcessor)
 };
