@@ -94,7 +94,7 @@ void ShowerfyAudioProcessorEditor::paint (Graphics& g)
 
 	g.setColour(Colours::white);
 	g.setFont(Font("Verdana", 15.00f, Font::plain));
-	g.drawText(TRANS("Delay"),
+	g.drawText(TRANS("Pre-Delay"),
 		460, 212, 200, 30,
 		Justification::centred, true);
 
@@ -198,7 +198,7 @@ hasStroke="0"/>
 hasStroke="0"/>
 <TEXT pos="292 212 200 30" fill="solid: ffffffff" hasStroke="0" text="Background Shower"
 fontname="Verdana" fontsize="15" bold="0" italic="0" justification="36"/>
-<TEXT pos="460 212 200 30" fill="solid: ffffffff" hasStroke="0" text="Delay"
+<TEXT pos="460 212 200 30" fill="solid: ffffffff" hasStroke="0" text="Pre-Delay"
 fontname="Verdana" fontsize="15" bold="0" italic="0" justification="36"/>
 <TEXT pos="628 212 200 30" fill="solid: ffffffff" hasStroke="0" text="Wet/Dry"
 fontname="Verdana" fontsize="15" bold="0" italic="0" justification="36"/>

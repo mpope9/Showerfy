@@ -307,10 +307,8 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 
 		/* Normalize the output.  Thanks FFTW. <3 FFTW FTW */
 		int i;
-		/*
 		for (i = 0; i < fftSize; ++i)
 			convolvedInverse[i] /= fftSize;
-			*/
 
 		if (*impulseResponseWetDry != 0)
 		{
@@ -319,7 +317,7 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 			for (i = 0; i < bufferNumSamples; ++i)
 			{
 				bufferWriters[i] = (bufferReaders[i] * (1.0f - *impulseResponseWetDry)) +
-					((fromFifo[i] / fftSize) * (*impulseResponseWetDry));
+					(fromFifo[i] * (*impulseResponseWetDry));
 				//bufferWriters[i] = fromFifo[i];
 			}
 		}
