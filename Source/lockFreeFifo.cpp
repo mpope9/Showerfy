@@ -7,46 +7,85 @@ lockFreeFifo::lockFreeFifo() : fifoSize(524288), abstractFifo(fifoSize), endPos(
 }
 
 /* Adds data to fifo, and incraments the adding location by amountToIncrament. */
-void lockFreeFifo::addToFifo(const float* data, int amountToAdd, int increment)
+void lockFreeFifo::addToFifo(const float* data, const float* bufferData, int dataSize, int bufferDataSize, int numSegments)
 {
 	int start1, size1, start2, size2;
 	int i, j;
-	abstractFifo.prepareToWrite(increment, start1, size1, start2, size2);
 
+	/* Should be equal to numSegemnts amount of buffers plus one overlap size. */
+	int segmentSize = dataSize / numSegments;
+	int overlapSize = segmentSize - bufferDataSize;
+	int newEndPos = (bufferDataSize * numSegments) + overlapSize;
+
+	abstractFifo.prepareToWrite(bufferDataSize, start1, size1, start2, size2);
 	/* Set the initial endPos.  Else increment endPos. */
 	if (endPos == start1)
-		endPos = amountToAdd;
-	else if (endPos + increment > fifoSize)
-		endPos = (endPos + increment) - fifoSize;
+		endPos = newEndPos;
+	else if (endPos + bufferDataSize > fifoSize)
+		endPos = (endPos + bufferDataSize) - fifoSize;
 	else
-		endPos += increment;
+		endPos += bufferDataSize;
 
-
-	/* If there is overflow and the buffer needs to write past the end.  Else, normal write. */
+	int segmentStart = start1;
+	int segmentEnd = 0;
 	int dataTracker = 0;
-	if (start1 > endPos)
+	int remainder = 0;
+
+	/* You need to get fancy with the copy to prevent fuck-ups. */
+	for (i = 0; i < numSegments; ++i)
 	{
+		remainder = 0;
+		/* Clever circular part. */
+		if (segmentStart + segmentSize >= fifoSize)
+		{
+			remainder = fifoSize - segmentStart;
+			for (j = segmentStart; j < fifoSize; ++j)
+			{
+				buffer[j] += data[dataTracker];
+				++dataTracker;
+			}
+			segmentStart = 0;
+			/* TESTING */
+			segmentEnd = segmentSize - remainder;
+		}
+		else
+			segmentEnd = segmentStart + segmentSize;
+
+		for (j = segmentStart; j < segmentEnd && dataTracker < dataSize; ++j)
+		{
+			buffer[j] += data[dataTracker];
+			++dataTracker;
+		}
+		segmentStart += bufferDataSize - remainder;		/* I think remainder has to be subracted for the circular part...? */
+	}
+
+	/* Add origional buffer to the bad boy. */
+	/*
+	if (start1 + bufferDataSize > fifoSize)
+	{
+		dataTracker = 0;
 		for (i = start1; i < fifoSize; ++i)
 		{
-			buffer[i] += data[dataTracker];
+			buffer[i] += bufferData[dataTracker];
 			++dataTracker;
 		}
-		for (i = 0; i < endPos; ++i)
+		for (i = 0; i < (start1 + bufferDataSize) - fifoSize; ++i)
 		{
-			buffer[i] += data[dataTracker];
+			buffer[i] += bufferData[dataTracker];
 			++dataTracker;
 		}
 	}
 	else
 	{
-		for (i = start1; i < endPos; ++i)
+		dataTracker = 0;
+		for (i = start1; i < bufferDataSize; ++i)
 		{
-			buffer[i] += data[dataTracker];
+			buffer[i] += bufferData[dataTracker];
 			++dataTracker;
 		}
 	}
-
-	abstractFifo.finishedWrite(increment);
+	*/
+	abstractFifo.finishedWrite(bufferDataSize);
 }
 
 /* Reads data from fifo.  Increases the get pointer.  Zero out what was removed. */

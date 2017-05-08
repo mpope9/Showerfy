@@ -134,22 +134,23 @@ void ShowerfyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 
 	/* FIFO TESTING */
 	/*
-	float inBuff[6];
-	float outBuff[4];
+	float inBuff[40];
+	float testBuffer[8];
+	float outBuff[8];
 	int x = 0;
 	int y = 0;
 	int increment = 0;
 
-	lockFreeFifo fifo;
-	for (y = 0; y < 6; ++y)
+	lockFreeFifo *fifo = new lockFreeFifo();
+	for (y = 0; y < 10; ++y)
 	{
-		for (x = 0; x < 6; ++x)
+		for (x = 0; x < 40; ++x)
 		{
 			inBuff[x] = increment;
 			++increment;
 		}
-		fifo.addToFifo(inBuff, 6, 4);
-		fifo.readFromFifo(outBuff, 4); // fix this.
+		fifo->addToFifo(inBuff, testBuffer, 40, 8, 4);
+		fifo->readFromFifo(outBuff, 8);
 	}
 	*/
 
@@ -304,21 +305,22 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		/* Inverse the buffer. */
 		fftwf_execute(invPlan);
 
+		/* Normalize the output.  Thanks FFTW. <3 FFTW FTW */
 		int i;
-		/* Normalize the output.  Thanks FFTW. <3 */
+		/*
 		for (i = 0; i < fftSize; ++i)
 			convolvedInverse[i] /= fftSize;
+			*/
 
 		if (*impulseResponseWetDry != 0)
 		{
-			curFifo->addToFifo(convolvedInverse, fftSize, bufferNumSamples);
+			curFifo->addToFifo(convolvedInverse, bufferReaders, fftSize, bufferNumSamples, 1);
 			curFifo->readFromFifo(fromFifo, bufferNumSamples);
-			//buffer.addFrom(channel, 0, fromFifo, bufferNumSamples);
-			//buffer.applyGain(*impulseResponseWetDry);
 			for (i = 0; i < bufferNumSamples; ++i)
 			{
 				bufferWriters[i] = (bufferReaders[i] * (1.0f - *impulseResponseWetDry)) +
-					fromFifo[i] * (*impulseResponseWetDry);
+					((fromFifo[i] / fftSize) * (*impulseResponseWetDry));
+				//bufferWriters[i] = fromFifo[i];
 			}
 		}
 
