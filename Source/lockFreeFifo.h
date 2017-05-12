@@ -11,7 +11,8 @@ public:
 	lockFreeFifo();
 	~lockFreeFifo();
 
-	void addToFifo(const float* data, const float* bufferData, int dataSize, int bufferDataSize, int numSegements);
+	void addToFifo(const float* data, const float* bufferData, int dataSize, int bufferDataSize, int numSegements, 
+		int sampleRate, float delay);
 	void readFromFifo(float* data, int amount);
 	void reset();
 
@@ -19,6 +20,5 @@ private:
 	int fifoSize;
 	AbstractFifo abstractFifo;
 	float buffer[524288]; // 2 ^ 19
-	int endPos;
 };
 

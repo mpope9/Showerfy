@@ -48,21 +48,28 @@ ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 	impulseResponseReader->read(&impulseResponseBuffer, 0, impulseResponseBuffer.getNumSamples(), 0, true, true);
 
 	/* Audio Parameters. */
-	addParameter(showerSoundGain = new AudioParameterFloat ("showerSoundGain",		/* param ID */
-															"Shower Sound Gain",	/* param name */
-															0.0f,					/* min value */
-															1.0f,					/* max value */
-															0.0f));					/* default value */
-	addParameter(impulseResponseDelay = new AudioParameterFloat("impulseResponseDelay",
-																"Impulse Response Delay",
-																0.0f,
-																1.0f,
-																0.0f));
-	addParameter(impulseResponseWetDry = new AudioParameterFloat(	"impulseResponseWetDry",
-																	"Impulse Response Wet/Dry",
-																	0.0f,
-																	1.0f,
-																	0.0f));
+	addParameter(showerSoundGain = new AudioParameterFloat (
+		"showerSoundGain",		/* param ID */
+		"Shower Sound Gain",	/* param name */
+		0.0f,					/* min value */
+		1.0f,					/* max value */
+		0.0f));					/* default value */
+	addParameter(impulseResponseDelay = new AudioParameterFloat(
+		"impulseResponseDelay",
+		"Impulse Response Delay",
+		0.0f,
+		3.0f,
+		0.0f));
+	addParameter(impulseResponseWetDry = new AudioParameterFloat(
+		"impulseResponseWetDry",
+		"Impulse Response Wet/Dry",
+		0.0f,
+		1.0f,
+		0.0f));
+	addParameter(impulseResponseChanLock = new AudioParameterBool(
+		"impulseResponseChanLock",
+		"Impulse Response Channel Lock",
+		true));
 }
 
 ShowerfyAudioProcessor::~ShowerfyAudioProcessor()
@@ -310,15 +317,24 @@ void ShowerfyAudioProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer
 		for (i = 0; i < fftSize; ++i)
 			convolvedInverse[i] /= fftSize;
 
+		/* Delay, checks for channel lock. */
+		float curDelay;
+		if (*impulseResponseChanLock)
+		{
+			if (channel == 0)
+				curDelay = *impulseResponseDelay;
+		}
+		else
+			curDelay = *impulseResponseDelay;
+
 		if (*impulseResponseWetDry != 0)
 		{
-			curFifo->addToFifo(convolvedInverse, bufferReaders, fftSize, bufferNumSamples, 1);
+			curFifo->addToFifo(convolvedInverse, bufferReaders, fftSize, bufferNumSamples, 1, getSampleRate(), curDelay);
 			curFifo->readFromFifo(fromFifo, bufferNumSamples);
 			for (i = 0; i < bufferNumSamples; ++i)
 			{
 				bufferWriters[i] = (bufferReaders[i] * (1.0f - *impulseResponseWetDry)) +
 					(fromFifo[i] * (*impulseResponseWetDry));
-				//bufferWriters[i] = fromFifo[i];
 			}
 		}
 

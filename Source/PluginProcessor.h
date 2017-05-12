@@ -65,6 +65,7 @@ private:
 	AudioParameterFloat* showerSoundGain;
 	AudioParameterFloat* impulseResponseDelay;
 	AudioParameterFloat* impulseResponseWetDry;
+	AudioParameterBool*  impulseResponseChanLock;
 
 	/* IR stuff. */
 	String impulseResponsePath = "C:\\Users\\Matthew\\Documents\\Programming\\VST\\Showerfy\\WAVs\\impulse.wav";

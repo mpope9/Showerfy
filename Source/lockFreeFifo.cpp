@@ -1,13 +1,14 @@
 #include "lockFreeFifo.h"
 
 
-lockFreeFifo::lockFreeFifo() : fifoSize(524288), abstractFifo(fifoSize), endPos(0)
+lockFreeFifo::lockFreeFifo() : fifoSize(524288), abstractFifo(fifoSize)
 {
 	memset(buffer, 0.0f, sizeof(float) * fifoSize);
 }
 
 /* Adds data to fifo, and incraments the adding location by amountToIncrament. */
-void lockFreeFifo::addToFifo(const float* data, const float* bufferData, int dataSize, int bufferDataSize, int numSegments)
+void lockFreeFifo::addToFifo(const float* data, const float* bufferData, int dataSize, int bufferDataSize,
+	int numSegments, int sampleRate, float delay)
 {
 	int start1, size1, start2, size2;
 	int i, j;
@@ -18,15 +19,9 @@ void lockFreeFifo::addToFifo(const float* data, const float* bufferData, int dat
 	int newEndPos = (bufferDataSize * numSegments) + overlapSize;
 
 	abstractFifo.prepareToWrite(bufferDataSize, start1, size1, start2, size2);
-	/* Set the initial endPos.  Else increment endPos. */
-	if (endPos == start1)
-		endPos = newEndPos;
-	else if (endPos + bufferDataSize > fifoSize)
-		endPos = (endPos + bufferDataSize) - fifoSize;
-	else
-		endPos += bufferDataSize;
 
-	int segmentStart = start1;
+	/* Add delay to the segmentStart */
+	int segmentStart = start1 + int(delay * sampleRate);
 	int segmentEnd = 0;
 	int dataTracker = 0;
 	int remainder = 0;
@@ -60,7 +55,6 @@ void lockFreeFifo::addToFifo(const float* data, const float* bufferData, int dat
 	}
 
 	/* Add origional buffer to the bad boy. */
-	/*
 	if (start1 + bufferDataSize > fifoSize)
 	{
 		dataTracker = 0;
@@ -84,7 +78,6 @@ void lockFreeFifo::addToFifo(const float* data, const float* bufferData, int dat
 			++dataTracker;
 		}
 	}
-	*/
 	abstractFifo.finishedWrite(bufferDataSize);
 }
 

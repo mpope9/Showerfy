@@ -30,6 +30,7 @@ public:
 	void paint (Graphics&) override;
 	void resized() override;
 	AudioParameterFloat* getParameterForSlider(Slider* slider);
+	AudioParameterBool* getParameterForButton(ToggleButton* button);
 	void sliderValueChanged(Slider* sliderThatWasMoved) override;
 	void buttonClicked(Button* buttonThatWasClicked) override;
 
@@ -43,6 +44,7 @@ private:
 	ScopedPointer<GroupComponent> groupComponent;
 	ScopedPointer<ToggleButton> toggleButton;
 	Array<Slider*> paramSliders;
+	Array<ToggleButton*> paramButtons;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ShowerfyAudioProcessorEditor)
 };

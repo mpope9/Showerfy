@@ -50,9 +50,11 @@ ShowerfyAudioProcessorEditor::ShowerfyAudioProcessorEditor (ShowerfyAudioProcess
 	groupComponent->setColour(GroupComponent::textColourId, Colours::white);
 
 	Component::addAndMakeVisible(toggleButton = new ToggleButton("new toggle button"));
-	toggleButton->setButtonText(TRANS("Apply Shower"));
+	toggleButton->setButtonText(TRANS("Delay Channel Lock"));
 	toggleButton->addListener(this);
 	toggleButton->setToggleState(true, dontSendNotification);
+
+	paramButtons.add(toggleButton);
 
 	AudioProcessorEditor::setSize (837, 253);
 }
@@ -126,13 +128,19 @@ void ShowerfyAudioProcessorEditor::resized()
 	groupComponent->setBounds(312, 80, 496, 160);
 	slider2->setBounds(440, 104, 248, 120);
 	slider3->setBounds(264, 104, 248, 120);
-	toggleButton->setBounds(104, 136, 208, 48);
+	toggleButton->setBounds(80, 136, 208, 48);
 }
 
 AudioParameterFloat* ShowerfyAudioProcessorEditor::getParameterForSlider(Slider* slider)
 {
 	const OwnedArray<AudioProcessorParameter>& params = processor.getParameters();
 	return dynamic_cast<AudioParameterFloat*> (params[paramSliders.indexOf(slider)]);
+}
+
+AudioParameterBool* ShowerfyAudioProcessorEditor::getParameterForButton(ToggleButton* button)
+{
+	const OwnedArray<AudioProcessorParameter>& params = processor.getParameters();
+	return dynamic_cast<AudioParameterBool*> (params[paramButtons.indexOf(button)]);
 }
 
 void ShowerfyAudioProcessorEditor::sliderValueChanged(Slider* sliderThatWasMoved)
@@ -168,6 +176,13 @@ void ShowerfyAudioProcessorEditor::buttonClicked(Button* buttonThatWasClicked)
 	if (buttonThatWasClicked == toggleButton)
 	{
 		//[UserButtonCode_toggleButton] -- add your button handler code here..
+		if (AudioParameterBool* param = getParameterForButton(toggleButton))
+		{
+			if (param->get() == false)
+				*param = true;
+			else
+				*param = false;
+		}
 		//[/UserButtonCode_toggleButton]
 	}
 
@@ -228,7 +243,7 @@ textboxtext="ffffffff" min="0" max="10" int="0" style="Rotary"
 textBoxPos="NoTextBox" textBoxEditable="1" textBoxWidth="80"
 textBoxHeight="20" skewFactor="1" needsCallback="1"/>
 <TOGGLEBUTTON name="new toggle button" id="3f02800a3b4b21" memberName="toggleButton"
-virtualName="" explicitFocusOrder="0" pos="104 136 208 48" buttonText="Apply Shower"
+virtualName="" explicitFocusOrder="0" pos="104 136 208 48" buttonText="Delay Channel Lock"
 connectedEdges="0" needsCallback="1" radioGroupId="0" state="1"/>
 </JUCER_COMPONENT>
 
