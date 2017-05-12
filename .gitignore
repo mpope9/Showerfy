@@ -56,3 +56,5 @@ Builds/VisualStudio2015/x64/Debug/Showerfy.ilk
 Builds/VisualStudio2015/x64/Debug/Showerfy.lib
 Builds/VisualStudio2015/x64/Debug/Showerfy.log
 Builds/VisualStudio2015/x64/Debug/Showerfy.pdb
+*.tlog
+Builds/VisualStudio2015/x64/Debug/vc140.pdb
