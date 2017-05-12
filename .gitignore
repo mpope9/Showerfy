@@ -46,3 +46,13 @@ Network Trash Folder
 Temporary Items
 .apdisk
 Builds/VisualStudio2015/.vs/Showerfy/v14/.suo
+Builds/VisualStudio2015/Showerfy.VC.db
+Builds/VisualStudio2015/Showerfy.VC.VC.opendb
+*.obj
+Builds/VisualStudio2015/x64/Debug/resources.res
+Builds/VisualStudio2015/x64/Debug/Showerfy.Build.CppClean.log
+Builds/VisualStudio2015/x64/Debug/Showerfy.exp
+Builds/VisualStudio2015/x64/Debug/Showerfy.ilk
+Builds/VisualStudio2015/x64/Debug/Showerfy.lib
+Builds/VisualStudio2015/x64/Debug/Showerfy.log
+Builds/VisualStudio2015/x64/Debug/Showerfy.pdb
