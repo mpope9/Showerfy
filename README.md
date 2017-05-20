@@ -6,6 +6,11 @@ This is a Impulse Response plugin written for my senior project at CSU Chico.  I
 ## Installation Instructions
 comming soon....
 
+## Features
+1) A wet/dry control knob to choose how much convlution is allowed.
+2) A Pre-Delay knob, with the option of locking the channels.  If channels are unlocked a funky effect happens.  
+3) A Shower sound knob, used to mix in me showering.
+
 This is written in C++ using the JUCE framework.
 www.juce.com
 
