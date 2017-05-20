@@ -29,23 +29,27 @@ ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 					   )
 #endif
 {
-	/* TODO: ADD OS DETECTION AND DYNAMIC PATH LOOK UP TO THE WAV FILES. */
-
-	/* Manager for files. */
 	AudioFormatManager manager;
 	manager.registerBasicFormats();
 
-	/* Shower sound buffer initialization. */
-	showerSoundFile = File(showerSoundPath);
-	showerSoundReader = manager.createReaderFor(showerSoundFile);
-	showerSoundBuffer.setSize(showerSoundReader->numChannels, showerSoundReader->lengthInSamples);
-	showerSoundReader->read(&showerSoundBuffer, 0, showerSoundReader->lengthInSamples, 0, true, true);
+	FileChooser showerchooser("Select the Shower Sound File (showerSound.wav)", File::nonexistent, "*.wav");
+	if (showerchooser.browseForFileToOpen())
+	{
+		showerSoundFile = File(showerchooser.getResult());
+		showerSoundReader = manager.createReaderFor(showerSoundFile);
+		showerSoundBuffer.setSize(showerSoundReader->numChannels, showerSoundReader->lengthInSamples);
+		showerSoundReader->read(&showerSoundBuffer, 0, showerSoundReader->lengthInSamples, 0, true, true);
+	}
 
 	/* Load IR */
-	impulseResponseFile = File(impulseResponsePath);
-	impulseResponseReader = manager.createReaderFor(impulseResponseFile);
-	impulseResponseBuffer.setSize(impulseResponseReader->numChannels, impulseResponseReader->lengthInSamples);
-	impulseResponseReader->read(&impulseResponseBuffer, 0, impulseResponseBuffer.getNumSamples(), 0, true, true);
+	FileChooser irchooser("Select the Impulse Response File (impulse.wav)", File::nonexistent, "*.wav");
+	if (irchooser.browseForFileToOpen())
+	{
+		impulseResponseFile = File(irchooser.getResult());
+		impulseResponseReader = manager.createReaderFor(impulseResponseFile);
+		impulseResponseBuffer.setSize(impulseResponseReader->numChannels, impulseResponseReader->lengthInSamples);
+		impulseResponseReader->read(&impulseResponseBuffer, 0, impulseResponseBuffer.getNumSamples(), 0, true, true);
+	}
 
 	/* Audio Parameters. */
 	addParameter(showerSoundGain = new AudioParameterFloat (
@@ -75,8 +79,8 @@ ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 ShowerfyAudioProcessor::~ShowerfyAudioProcessor()
 {
 	fftwf_cleanup();
-	delete impulseResponseReader;
 	delete showerSoundReader;
+	delete impulseResponseReader;
 }
 
 //==============================================================================

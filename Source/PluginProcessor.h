@@ -68,13 +68,11 @@ private:
 	AudioParameterBool*  impulseResponseChanLock;
 
 	/* IR stuff. */
-	String impulseResponsePath = "C:\\Users\\Matthew\\Documents\\Programming\\VST\\Showerfy\\WAVs\\impulse.wav";
 	File impulseResponseFile;
 	AudioFormatReader* impulseResponseReader;
 	AudioSampleBuffer impulseResponseBuffer;
 
 	/* Shower Sound stuff. */
-	String showerSoundPath = "C:\\Users\\Matthew\\Documents\\Programming\\VST\\Showerfy\\WAVs\\showerSound.wav";	/* Path to the shower sound. */
 	File showerSoundFile;									/* The shower sound file*/
 	AudioFormatReader* showerSoundReader;					/* Reader for the file, fills the buffer. */
 	AudioSampleBuffer showerSoundBuffer;					/* A buffer of samples for the audio sample buffer. */
