@@ -18,6 +18,7 @@
 */
 ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 	: showerSoundPosition(0),										/* Initial shower sound pos is 0 */
+	filesChosen(false),
 #ifndef JucePlugin_PreferredChannelConfigurations
 	AudioProcessor (BusesProperties()
 					 #if ! JucePlugin_IsMidiEffect
@@ -29,28 +30,6 @@ ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 					   )
 #endif
 {
-	AudioFormatManager manager;
-	manager.registerBasicFormats();
-
-	FileChooser showerchooser("Select the Shower Sound File (showerSound.wav)", File::nonexistent, "*.wav");
-	if (showerchooser.browseForFileToOpen())
-	{
-		showerSoundFile = File(showerchooser.getResult());
-		showerSoundReader = manager.createReaderFor(showerSoundFile);
-		showerSoundBuffer.setSize(showerSoundReader->numChannels, showerSoundReader->lengthInSamples);
-		showerSoundReader->read(&showerSoundBuffer, 0, showerSoundReader->lengthInSamples, 0, true, true);
-	}
-
-	/* Load IR */
-	FileChooser irchooser("Select the Impulse Response File (impulse.wav)", File::nonexistent, "*.wav");
-	if (irchooser.browseForFileToOpen())
-	{
-		impulseResponseFile = File(irchooser.getResult());
-		impulseResponseReader = manager.createReaderFor(impulseResponseFile);
-		impulseResponseBuffer.setSize(impulseResponseReader->numChannels, impulseResponseReader->lengthInSamples);
-		impulseResponseReader->read(&impulseResponseBuffer, 0, impulseResponseBuffer.getNumSamples(), 0, true, true);
-	}
-
 	/* Audio Parameters. */
 	addParameter(showerSoundGain = new AudioParameterFloat (
 		"showerSoundGain",		/* param ID */
@@ -79,8 +58,6 @@ ShowerfyAudioProcessor::ShowerfyAudioProcessor()
 ShowerfyAudioProcessor::~ShowerfyAudioProcessor()
 {
 	fftwf_cleanup();
-	delete showerSoundReader;
-	delete impulseResponseReader;
 }
 
 //==============================================================================
@@ -164,6 +141,37 @@ void ShowerfyAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
 		fifo->readFromFifo(outBuff, 8);
 	}
 	*/
+
+	/* Open the files, but only once. */
+	if (!filesChosen) {
+
+		AudioFormatManager manager;
+		manager.registerBasicFormats();
+
+		FileChooser showerchooser("Select the Shower Sound File (showerSound.wav)", File::nonexistent, "*.wav");
+		if (showerchooser.browseForFileToOpen())
+		{
+			showerSoundFile = File(showerchooser.getResult());
+			showerSoundReader = manager.createReaderFor(showerSoundFile);
+			showerSoundBuffer.setSize(showerSoundReader->numChannels, showerSoundReader->lengthInSamples);
+			showerSoundReader->read(&showerSoundBuffer, 0, showerSoundReader->lengthInSamples, 0, true, true);
+			delete showerSoundReader;
+		}
+
+		/* Load IR */
+		FileChooser irchooser("Select the Impulse Response File (impulse.wav)", File::nonexistent, "*.wav");
+		if (irchooser.browseForFileToOpen())
+		{
+			impulseResponseFile = File(irchooser.getResult());
+			impulseResponseReader = manager.createReaderFor(impulseResponseFile);
+			impulseResponseBuffer.setSize(impulseResponseReader->numChannels, impulseResponseReader->lengthInSamples);
+			impulseResponseReader->read(&impulseResponseBuffer, 0, impulseResponseBuffer.getNumSamples(), 0, true, true);
+			delete impulseResponseReader;
+		}
+
+
+		filesChosen = true;
+	}
 
 	int IRBS = impulseResponseBuffer.getNumSamples();
 	int fftSize = IRBS + samplesPerBlock - 1;

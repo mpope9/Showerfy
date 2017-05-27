@@ -77,6 +77,7 @@ private:
 	AudioFormatReader* showerSoundReader;					/* Reader for the file, fills the buffer. */
 	AudioSampleBuffer showerSoundBuffer;					/* A buffer of samples for the audio sample buffer. */
 	int showerSoundPosition;								/* Position of the showerSound buffer */
+	bool filesChosen;										/* If the files have been chosen yet. */
 
 	/* FFT related stuff. */
 	Array<float*> prepCopysIn;
