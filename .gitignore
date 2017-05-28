@@ -45,16 +45,16 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
-Builds/VisualStudio2015/.vs/Showerfy/v14/.suo
-Builds/VisualStudio2015/Showerfy.VC.db
-Builds/VisualStudio2015/Showerfy.VC.VC.opendb
+SourceCode/Builds/VisualStudio2015/.vs/Showerfy/v14/.suo
+SourceCode/Builds/VisualStudio2015/Showerfy.VC.db
+SourceCode/Builds/VisualStudio2015/Showerfy.VC.VC.opendb
 *.obj
-Builds/VisualStudio2015/x64/Debug/resources.res
-Builds/VisualStudio2015/x64/Debug/Showerfy.Build.CppClean.log
-Builds/VisualStudio2015/x64/Debug/Showerfy.exp
-Builds/VisualStudio2015/x64/Debug/Showerfy.ilk
-Builds/VisualStudio2015/x64/Debug/Showerfy.lib
-Builds/VisualStudio2015/x64/Debug/Showerfy.log
-Builds/VisualStudio2015/x64/Debug/Showerfy.pdb
+SourceCode/Builds/VisualStudio2015/x64/Debug/resources.res
+SourceCode/Builds/VisualStudio2015/x64/Debug/Showerfy.Build.CppClean.log
+SourceCode/Builds/VisualStudio2015/x64/Debug/Showerfy.exp
+SourceCode/Builds/VisualStudio2015/x64/Debug/Showerfy.ilk
+SourceCode/Builds/VisualStudio2015/x64/Debug/Showerfy.lib
+SourceCode/Builds/VisualStudio2015/x64/Debug/Showerfy.log
+SourceCode/Builds/VisualStudio2015/x64/Debug/Showerfy.pdb
 *.tlog
-Builds/VisualStudio2015/x64/Debug/vc140.pdb
+SourceCode/Builds/VisualStudio2015/x64/Debug/vc140.pdb
