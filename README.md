@@ -4,9 +4,9 @@ Showerfy v0.0.2 - A VST/AU to simulate my shower.
 This is a Impulse Response plugin written for my senior project at CSU Chico.  It makes what is recorded sound like it was made in my shower.  Tested on REAPER, working reasonably well.  
 
 ## Installation Instructions
-1)  Download the .zip file
+1)  Download the .dll file
 2)  For Windows: Copy the .dll file to the appropriate plugin directory.
-3)  For OSX: Copy the xxx file to the appropriate plugin directory.
+3)  For OSX: Coming soon, sorry...
 4)  Save the WAVs folder in a memorable place.
 5)  Load the WAVs into the plugin when it loads.
 
@@ -23,7 +23,8 @@ http://www.fftw.org/
 
 ## Warning
 ```
-This plugin is still under development!!  There have been (occasional) spikes in volume above 18db.  Take proper precocious.  I am not responsible for any damage/problems that can occur. 
+This plugin is still under development!!  There have been (occasional) spikes in volume above 18db.  
+Take proper precocious.  I am not responsible for any damage/problems that can occur. 
 ```
 
 ## License
